@@ -1,10 +1,12 @@
+#include <type_traits>
+#include <functional>
+
 template< int X, int... Xs >
 struct Arr {
     static constexpr int head = X;
     using Tail = Arr< Xs... >;
     template< int Y >
     using Push_back = Arr< X, Xs..., Y >;
-    static constexpr size_t value = Arr< Xs... >::size + 1;
 };
 
 template< int X >
@@ -13,7 +15,6 @@ struct Arr< X > {
     using Tail = int;
     template< int Y >
     using Push_back = Arr< X, Y >;
-    static constexpr size_t size = 1;
 };
 
 template< typename T1, typename T2 >
@@ -51,42 +52,42 @@ struct Filter< F, T, typename std::enable_if_t< !std::is_same< T, int >::value &
     using Result = typename Filter< F, typename T::Tail >::Result;
 };
 
-template< int X >
+template< int X, typename C >
 struct Cmp {
     template< int Y >
     struct Less {
-        static constexpr bool value = X > Y;
+        static constexpr bool value = C()(Y, X);
     };
 
     template< int Y >
     struct Equal {
-        static constexpr bool value = X == Y;
+        static constexpr bool value = !C()(X, Y) && !C()(Y, X);
     };
 
     template< int Y >
     struct Greater {
-        static constexpr bool value = X < Y;
+        static constexpr bool value = C()(X, Y);
     };
 };
 
-template< typename T >
+template< typename T, typename C = std::less< int > >
 struct Sort {
     template< int X >
-    using Lc = typename Cmp< T::head >::template Less   < X >;
-    using Ls = typename Sort< typename Filter< Lc, T >::Result >::Result;
+    using Lc = typename Cmp< T::head, C >::template Less   < X >;
+    using Ls = typename Sort< typename Filter< Lc, T >::Result, C >::Result;
 
     template< int X >
-    using Ec = typename Cmp< T::head >::template Equal  < X >;
+    using Ec = typename Cmp< T::head, C >::template Equal  < X >;
     using Es = typename Filter< Ec, T >::Result;
 
     template< int X >
-    using Gc = typename Cmp< T::head >::template Greater< X >;
-    using Gs = typename Sort< typename Filter< Gc, T >::Result >::Result;
+    using Gc = typename Cmp< T::head, C >::template Greater< X >;
+    using Gs = typename Sort< typename Filter< Gc, T >::Result, C >::Result;
 
     using Result = typename Add< typename Add< Ls, Es >::Result, Gs >::Result;
 };
 
-template<>
-struct Sort< int > {
+template< typename C >
+struct Sort< int, C > {
     using Result = int;
 };
